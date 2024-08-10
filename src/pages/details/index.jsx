@@ -1,63 +1,80 @@
-import axios from "axios";
-import Modal from "react-modal";
-import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-
-import { customStyles } from "./customStyles";
-
-import Header from "../../components/header/index,";
-
-import "./styles.css";
+import axios from "axios";
 import { useEffect, useState } from "react";
-import { schema } from "./schema";
-import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { FaEdit, FaRegTrashAlt } from "react-icons/fa";
+import Modal from "react-modal";
+import { useNavigate, useParams } from "react-router-dom";
+import Header from "../../components/header/index,";
+import { customStyles } from "../home/customStyles";
+import { schema } from "../home/schema";
+import "./styles.css";
 
-Modal.setAppElement("#root");
+export default function Details() {
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-export default function Home() {
+  const [product, setProduct] = useState({});
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const [isModalVisibleDelete, setIsModalVisibleDelete] = useState(false);
+
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
   });
 
-  const [isModalVisible, setIsModalVisible] = useState(false);
-
-  const [products, setProducts] = useState([]);
-
-  async function getProducts() {
+  async function getProductDetails() {
     try {
       const response = await axios.get(
-        "https://api-produtos-unyleya.vercel.app/produtos"
+        `https://api-produtos-unyleya.vercel.app/produtos/${id}`
       );
 
-      setProducts(response?.data);
+      setProduct(response.data);
     } catch (error) {
-      alert("erro ao buscar produtos");
+      alert("Erro ao buscar detalhes do produto");
     }
   }
 
   useEffect(() => {
-    getProducts();
-  }, []);
+    getProductDetails();
+  }, [id]);
+
+  async function removeProduct() {
+    try {
+      await axios.delete(
+        `https://api-produtos-unyleya.vercel.app/produtos/${id}`
+      );
+      setIsModalVisibleDelete(false);
+      alert("Produto removido com sucesso");
+      navigate(-1);
+    } catch (error) {
+      alert("Erro ao remover produto");
+    }
+  }
 
   async function saveProduct(data) {
     // console.log(data);
 
     try {
-      await axios.post("https://api-produtos-unyleya.vercel.app/produtos", {
-        nome: data.name,
-        preco: data.price,
-        fornecedor: data.supplier,
-        url_imagem: data.img,
-        descricao: data.description,
-      });
+      await axios.put(
+        `https://api-produtos-unyleya.vercel.app/produtos/${id}`,
+        {
+          nome: data.name,
+          preco: data.price,
+          fornecedor: data.supplier,
+          url_imagem: data.img,
+          descricao: data.description,
+        }
+      );
       setIsModalVisible(false);
-      alert("Produto cadastrado com sucesso!");
-      getProducts();
+      alert("Produto editado com sucesso!");
+      getProductDetails();
       reset();
     } catch (error) {
       alert("Erro ao cadastrar produto");
@@ -67,30 +84,32 @@ export default function Home() {
   return (
     <div>
       <Header />
-      <div className="home_container">
-        <h1>Produtos</h1>
 
-        <div className="content_products">
-          {products.map((product, index) => (
-            <Link key={index} to={`/details/${product._id}`}>
-              <div className="card">
-                <p className="title">{product.nome}</p>
-
-                <img className="img_product" src={product.url_imagem} />
-
-                <p className="manufacturer">{product.fornecedor}</p>
-                <p className="price">R$ {product.preco}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <button
-          className="float_button"
-          onClick={() => setIsModalVisible(true)}
-        >
-          +
-        </button>
+      <div className="details_container">
+        <h2>{product.nome}</h2>{" "}
+        <FaEdit
+          cursor="pointer"
+          size={28}
+          color="#555"
+          onClick={() => {
+            setIsModalVisible(true);
+            setValue("name", product.nome);
+            setValue("price", product.preco);
+            setValue("supplier", product.fornecedor);
+            setValue("img", product.url_imagem);
+            setValue("description", product.descricao);
+          }}
+        />
+        <FaRegTrashAlt
+          cursor="pointer"
+          size={26}
+          color="#555"
+          onClick={() => setIsModalVisibleDelete(true)}
+        />
+        <h6>{product.fornecedor}</h6>
+        <p className="price">{product.preco}</p>
+        <img src={product.url_imagem} />
+        <p className="description">{product.descricao}</p>
       </div>
 
       <Modal
@@ -101,7 +120,7 @@ export default function Home() {
           reset();
         }}
       >
-        <h3 className="title_form">Cadastro de produtos</h3>
+        <h3 className="title_form">Editar produto</h3>
 
         <form className="form" onSubmit={handleSubmit(saveProduct)}>
           <div style={{ marginBottom: 10 }}>
@@ -170,6 +189,25 @@ export default function Home() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isModalVisibleDelete}
+        style={customStyles}
+        onRequestClose={() => {
+          setIsModalVisibleDelete(false);
+        }}
+      >
+        <h4>Confirmar exclusão</h4>
+
+        <p>Deseja realmente excluir o produto selecionado?</p>
+
+        <div className="container_modal_delet_buttons">
+          <button onClick={removeProduct}>Confirmar</button>
+          <button onClick={() => setIsModalVisibleDelete(false)}>
+            Cancelar
+          </button>
+        </div>
       </Modal>
     </div>
   );
